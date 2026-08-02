@@ -2,14 +2,14 @@ use murmur3::murmur3_32;
 use std::io::Cursor;
 
 #[derive(Debug)]
-struct BloomFilter {
+pub struct BloomFilter {
     len: u32,
     hash_count: u32,
     bit_arr: Vec<u8>,
 }
 
 impl BloomFilter {
-    fn new(item_count: u32, p: f32) -> Self {
+    pub fn new(item_count: u32, p: f32) -> Self {
         let len = Self::get_len(item_count, p);
         let hash_count = Self::get_hash_count(len as u32, item_count);
 
@@ -20,7 +20,7 @@ impl BloomFilter {
         }
     }
 
-    fn add(&mut self, value: &str) {
+    pub fn add(&mut self, value: &str) {
         for i in 0..self.hash_count {
             let hash = murmur3_32(&mut Cursor::new(value), i).unwrap();
             let position = (hash % self.len) as usize;
@@ -29,7 +29,7 @@ impl BloomFilter {
         }
     }
 
-    fn check(&self, value: &str) -> bool {
+    pub fn check(&self, value: &str) -> bool {
         for i in 0..self.hash_count {
             let hash = murmur3_32(&mut Cursor::new(value), i).unwrap();
             let position = (hash % self.len) as usize;
@@ -62,19 +62,9 @@ impl BloomFilter {
     }
 }
 
-fn main() {
-    let mut bloom_filter = BloomFilter::new(5, 0.01);
-    bloom_filter.add("hello world");
-
-    let is_not_in = bloom_filter.check("abc");
-    println!("Is 'abc' in filter? {}", is_not_in);
-    // println!("{bloom_filter:?}");
-}
-
-
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::BloomFilter;
 
     #[test]
     fn test_get_len() {
