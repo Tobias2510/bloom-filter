@@ -1,6 +1,12 @@
 use murmur3::murmur3_32;
 use std::io::Cursor;
 
+#[derive(PartialEq, Debug)]
+pub enum ArgumentsError {
+    ZeroItems,
+    InvalidP,
+}
+
 #[derive(Debug)]
 pub struct BloomFilter {
     len: u32,
@@ -9,15 +15,19 @@ pub struct BloomFilter {
 }
 
 impl BloomFilter {
-    pub fn new(item_count: u32, p: f32) -> Self {
-        let len = Self::get_len(item_count, p);
-        let hash_count = Self::get_hash_count(len as u32, item_count);
+    pub fn new(item_count: u32, p: f32) -> Result<Self, ArgumentsError> {
+        if p.is_nan() {
+            return Err(ArgumentsError::InvalidP);
+        }
 
-        Self {
+        let len = Self::get_len(item_count, p)?;
+        let hash_count = Self::get_hash_count(len as u32, item_count)?;
+
+        Ok(Self {
             len: len as u32,
             hash_count: hash_count,
-            bit_arr: vec![0; len],
-        }
+            bit_arr: vec![0; len as usize],
+        })
     }
 
     pub fn add(&mut self, value: &str) {
@@ -42,23 +52,31 @@ impl BloomFilter {
         true
     }
 
-    fn get_len(item_count: u32, p: f32) -> usize {
+    fn get_len(item_count: u32, p: f32) -> Result<u32, ArgumentsError> {
+        if item_count <= 0 {
+            return Err(ArgumentsError::ZeroItems);
+        }
+
+        if p <= 0.0 || p >= 1.0 {
+            return Err(ArgumentsError::InvalidP);
+        }
+
         let n = item_count as f32;
 
         let m = -(n * p.ln()) / (2.0_f32.ln().powi(2));
-        m.ceil() as usize
+        Ok(m.ceil() as u32)
     }
 
-    fn get_hash_count(len: u32, item_count: u32) -> u32 {
-        if item_count == 0 {
-            return 1 as u32;
+    fn get_hash_count(len: u32, item_count: u32) -> Result<u32, ArgumentsError> {
+        if item_count <= 0 {
+            return Err(ArgumentsError::ZeroItems);
         }
 
         let m = len as f32;
         let n = item_count as f32;
 
         let k = (m / n) * 2_f32.ln();
-        k.ceil() as u32
+        Ok(k.ceil() as u32)
     }
 }
 
@@ -68,22 +86,22 @@ mod tests {
 
     #[test]
     fn test_get_len() {
-        assert_eq!(BloomFilter::get_len(10, 0.05), 63);
-        assert_eq!(BloomFilter::get_len(100, 0.05), 624);
-        assert_eq!(BloomFilter::get_len(1000, 0.01), 9586);
-        assert_eq!(BloomFilter::get_len(5, 0.01), 48);
+        assert_eq!(BloomFilter::get_len(10, 0.05).unwrap(), 63);
+        assert_eq!(BloomFilter::get_len(100, 0.05).unwrap(), 624);
+        assert_eq!(BloomFilter::get_len(1000, 0.01).unwrap(), 9586);
+        assert_eq!(BloomFilter::get_len(5, 0.01).unwrap(), 48);
     }
 
     #[test]
     fn test_get_hash_count() {
-        assert_eq!(BloomFilter::get_hash_count(100, 10), 7);
-        assert_eq!(BloomFilter::get_hash_count(1000, 12), 58);
-        assert_eq!(BloomFilter::get_hash_count(10, 3), 3);
+        assert_eq!(BloomFilter::get_hash_count(100, 10).unwrap(), 7);
+        assert_eq!(BloomFilter::get_hash_count(1000, 12).unwrap(), 58);
+        assert_eq!(BloomFilter::get_hash_count(10, 3).unwrap(), 3);
     }
 
     #[test]
     fn test_bloom_filter_true() {
-        let mut bloom_filter = BloomFilter::new(10, 0.05);
+        let mut bloom_filter = BloomFilter::new(10, 0.05).unwrap();
         bloom_filter.add("user1");
         bloom_filter.add("user256");
         bloom_filter.add("john m");
@@ -95,7 +113,7 @@ mod tests {
 
     #[test]
     fn test_bloom_filter_false() {
-        let mut bloom_filter = BloomFilter::new(10, 0.05);
+        let mut bloom_filter = BloomFilter::new(10, 0.05).unwrap();
         bloom_filter.add("user2");
         bloom_filter.add("bill c");
         bloom_filter.add("jack d");
