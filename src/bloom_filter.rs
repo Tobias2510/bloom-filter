@@ -1,6 +1,8 @@
 use murmur3::murmur3_32;
 use std::io::Cursor;
 
+use crate::bitmap::BitMap;
+
 #[derive(PartialEq, Debug)]
 pub enum ArgumentsError {
     ZeroItems,
@@ -11,7 +13,7 @@ pub enum ArgumentsError {
 pub struct BloomFilter {
     len: u32,
     hash_count: u32,
-    bit_arr: Vec<u8>,
+    bitmap: BitMap,
 }
 
 impl BloomFilter {
@@ -26,7 +28,7 @@ impl BloomFilter {
         Ok(Self {
             len: len as u32,
             hash_count: hash_count,
-            bit_arr: vec![0; len as usize],
+            bitmap: BitMap::new(len as usize),
         })
     }
 
@@ -35,7 +37,10 @@ impl BloomFilter {
             let hash = murmur3_32(&mut Cursor::new(value), i).unwrap();
             let position = (hash % self.len) as usize;
 
-            self.bit_arr[position] = 1;
+            match self.bitmap.set(position, true) {
+                Ok(_) => (),
+                Err(error) => panic!("Error adding a string to the Bloom Filter: {error:?}"),
+            }
         }
     }
 
@@ -44,11 +49,17 @@ impl BloomFilter {
             let hash = murmur3_32(&mut Cursor::new(value), i).unwrap();
             let position = (hash % self.len) as usize;
 
-            if self.bit_arr[position] == 0 {
-                return false;
+            let bit = self.bitmap.get(position);
+
+            match bit {
+                Ok(value) => {
+                    if value == 0 {
+                        return false;
+                    }
+                }
+                Err(error) => panic!("Error checking a string in the Bloom Filter: {error:?}"),
             }
         }
-
         true
     }
 
