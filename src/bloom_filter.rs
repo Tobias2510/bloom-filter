@@ -3,9 +3,11 @@ use std::io::Cursor;
 
 use crate::bitmap::BitMap;
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, thiserror::Error)]
 pub enum ArgumentsError {
+    #[error("item count must be greater than zero")]
     ZeroItems,
+    #[error("false positive probability p must be between 0 and 1 (exclusive)")]
     InvalidP,
 }
 

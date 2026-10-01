@@ -1,15 +1,8 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum BitMapError {
+    #[error("invalid index")]
     InvalidIndex,
 }
-
-impl std::fmt::Display for BitMapError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("invalid index")
-    }
-}
-
-impl std::error::Error for BitMapError {}
 
 #[derive(Debug)]
 pub struct BitMap {
